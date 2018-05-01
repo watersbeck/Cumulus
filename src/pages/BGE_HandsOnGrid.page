@@ -1,4 +1,5 @@
 <apex:page controller="BGE_HandsOnGridController" showHeader="false" sidebar="false" docType="html-5.0">
+
     <html ng-app="myApp" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" lang="en">
 
         <!-- AngularJs 1.6.4 -->
@@ -36,17 +37,14 @@
             }
 
             .handsontable th {
+                text-align: center;
                 border-right: none;
                 color: #758696 !important;
                 border-bottom: 1px solid #cccccc !important;
-                height: 40px;
-                vertical-align: middle !important;
             }
 
             .handsontable td {
                 color: #536787 !important;
-                padding-left: 5px;
-                padding-right: 5px;
             }
 
             .fixed-horizontal {
@@ -87,28 +85,6 @@
                 text-align: center;
             }
 
-            .htDatepickerHolder{
-
-                width: 470px;
-            }
-
-            .pika-lendar {
-
-                float: left;
-                width: 400px;
-                margin: 32px;
-            }
-
-            .pika-button{
-
-                text-align: left;
-            }
-
-            .pika-prev, .pika-next {
-
-                margin-right: 85px !important;
-            }
-
         </style>
 
         <!-- Custom Javascript -->
@@ -131,7 +107,6 @@
             myApp.controller('MainCtrl', function($scope, $compile) {
 
                 var data = JSON.parse('{!jsonString}');
-
                 var columnsData = JSON.parse('{!jsonColumnsString}');
 
                 table = document.getElementById('my-hot-table');
@@ -140,7 +115,6 @@
 
                 // Flag that is set true if the user have just pressed the up arrow key.
                 wasUpArrowPressed = false;
-
 
                 // Flag that is set true if the selected cell have just moved horizontally.
                 movedSideWays = false;
@@ -205,43 +179,6 @@
                     }
                 }
 
-
-                if(window.attachEvent) {
-
-                    window.attachEvent('onresize', function() {
-                        alert('attachEvent - resize');
-
-                        hot.updateSettings({
-                            width: calculateWindowWidth(),
-                            height: calculateWindowHeight()
-                        });
-
-                    });
-                }
-                else if(window.addEventListener) {
-
-                    window.addEventListener('resize', function() {
-                        console.log('addEventListener - resize');
-
-                        hot.updateSettings({
-                            width: calculateWindowWidth(),
-                            height: calculateWindowHeight()
-                        });
-
-                    }, true);
-                }
-
-                function calculateWindowWidth() {
-
-                    return window.innerWidth * 91 / 100;
-                }
-
-                function calculateWindowHeight() {
-
-                    return window.innerHeight * 70 /100;
-                }
-
-
                 //To display action column icons
                 function actionCellsRenderer(instance, td, row, col, prop, value, cellProperties) {
 
@@ -293,14 +230,14 @@
                     if (templateField.required) {
                         col.required = true;
                     }
-                    col.title = '<span>' + templateField.name.toUpperCase() + '</span>';
+                    col.title = templateField.name.toUpperCase();
                     col.type = templateField.type;
 
                     // Enable type checking. If for example the user places text in a numeric column, mark the cell as red
                     col.allowInvalid = true;
 
                     // Center the content of the columns
-                    col.className = "htCenter htMiddle slds-truncate";
+                    col.className = "htCenter htMiddle";
 
                     // Do not wrap the content of the column
                     col.wordWrap = false;
@@ -323,21 +260,12 @@
                     if (templateField.isDecimal === "true") {
 
                         col.format = '$0,0.00';
-                        col.className = "htRight htMiddle";
-                        col.title = '<span style="float: right">' + templateField.name.toUpperCase() + '</span>';
                     }
 
                     if (templateField.type === "email") {
 
                         col.type = 'text';
                     }
-
-                    if (templateField.type === "text") {
-
-                        col.className = "htLeft htMiddle";
-                    }
-
-                    dynamicColumns.push(col);
 
                     if (templateField.apiName !== "Id") {
 
@@ -348,8 +276,8 @@
 
                 dynamicColumns.push(actionCol);
 
-                var tableWidth = window.innerWidth * 91 / 100;
-                var tableHeight = window.innerHeight * 70 /100;
+                var tableWidth = window.innerWidth * 93 / 100;
+                var tableHeight = window.innerHeight * 75 /100;
                 var colCount = dynamicColumns.length;
 
                 // BEGINNING OF TABLE CONFIGURATION
@@ -377,9 +305,9 @@
                     maxRows: 50,
                     manualColumnResize: [50],
                     colWidths: 150,
-                    rowHeights: 30,
+                    rowHeights: 40,
                     colHeaders: true,
-                    columnHeaderHeight: 30,
+                    columnHeaderHeight: 40,
 
                     //padding: 6px 6px !important;
                     columns: dynamicColumns,
@@ -545,11 +473,7 @@
                                         dataRowId  = result.dataImportIds[0];
                                     }
                                 });
-
                             }
-                            $scope.currentDataImport = this.getDataAtRow(row);
-                            changesToSave[dataRowId][prop] = newValue;
-                        }
 
                             $scope.currentDataImport = this.getDataAtRow(row);
                             changesToSave[dataRowId][prop] = newValue;
@@ -696,6 +620,11 @@
 
                 // BEGIN DEFINING ANGULAR FUNCTIONS
 
+                //    hot.view.wt.update('onCellDblClick', function (row,cell) {
+
+                //        console.log("double click");
+                //    });
+
                 function getColumnFromName(name){
 
                     var numberOfColumns = dynamicColumns.length;
@@ -757,13 +686,16 @@
                     var col = 0;
 
                     if (!onMass) {
+
                         row = row - 1;
                     }
 
                     if (!messages) {
+
                         messages = [];
                     }
                     else if (messages.length > 0 ) {
+
                         messages.push('\<br\>');
                     }
 
@@ -1211,7 +1143,7 @@
                 // END DEFINING ANGULAR FUNCTIONS
             });
 
-	          function removeMessage(dataRowId) {
+	        function removeMessage(dataRowId) {
 
                 setTimeout(function() {
                     $(dataRowId).find( "span:last" ).remove();
@@ -1222,7 +1154,7 @@
 
                 var htmlTooltip = '<span id="selector" style="position: absolute; margin-top: ' + styleTop + 'em;"><div class="slds-popover slds-popover_tooltip slds-nubbin_bottom-left slds-theme_error" style="min-width: 28em;" role="tooltip" id="contentTooltip"><div class="slds-popover__body slds-text-body_small" id="notifyContent">' + messages + '</div></span>';
 
-                setTimeout(function() {
+                setTimeout(function() { 
                     $(dataRowId).append(htmlTooltip);
                 }, 10);
             }
@@ -1250,32 +1182,8 @@
             <div id="notifications"></div>
             <div id="wrapper" class="slds-form" ng-controller="MainCtrl as ctrl">
 
-                    <!-- ALERT MESSAGE -->
-
-                <apex:outputPanel layout="block" styleClass="demo-only" style="height: 4rem; margin-top: 17%" rendered="{!displayError}">
-                    <div class="demo-only" style="height: 640px;">
-                        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
-                            <div class="slds-modal__container">
-                                <header class="slds-modal__header">
-                                    <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">Missing Batch Template</h2>
-                                </header>
-                                <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
-                                    <p class="slds-align_absolute-center">There is no Batch Template associated with this Batch. <br/>Please associate this Batch with a Batch Template.</p>
-                                </div>
-                                    <footer class="slds-modal__footer">
-                                        <button class="slds-button slds-button_brand" onClick="window.history.back();">Close</button>
-                                    </footer>
-                                </div>
-                        </section>
-                        <div class="slds-backdrop slds-backdrop_open"></div>
-                    </div>
-
-                </apex:outputPanel>
-
-                <!-- ALERT MESSAGE -->
-
                 <!-- TABLE -->
-                <apex:outputPanel layout="block" styleClass="slds-m-horizontal_xx-large" rendered="{!NOT(displayError)}">
+                <div class="slds-m-horizontal_xx-large">
 
                     <div class="slds-m-horizontal_xx-large slds-m-vertical_medium slds-clearfix">
                         <div class="slds-float_right">
@@ -1305,48 +1213,24 @@
                         </div>
                     </div>
 
-                	<div id="my-hot-table" class="handsontable" />
-
-                </apex:outputPanel>
+                    <div id="my-hot-table" class="handsontable" />
+                </div>
                 <!-- / TABLE -->
 
                 <!-- FOOTER -->
 
-                <apex:outputPanel layout="block" styleClass="slds-m-around_small" style="text-align: center;" rendered="{!NOT(displayError)}">
-
-                    <div>
+                <apex:outputpanel styleclass="slds-m-around_small" style="text-align: center;">
+                    <div >
                         <b>TOTAL OF RECORDS: </b>&nbsp;
                         <output id="totalOfRecords" placeholder="0" style="width: 150px;"/>
                     </div>
 
                     <div >
                         <b>TOTAL AMOUNT: </b>&nbsp;
-                        <output id="totalAmount" placeholder="0" style="width: 150px;"/>
+                        <output id="totalAmount"    placeholder="0" style="width: 150px;"/>
                     </div>
 
-                    <div class="slds-m-vertical_x-large slds-hide">
-                        <div class="slds-popover toggle slds-m-top_x-large" style="position:absolute;" role="tooltip" id="help" aura:id="tooltip">
-                            <!-- Set properties of each template field -->
-                            <div class="slds-popover__body">
-
-                                <div class="slds-media slds-no-space slds-has-divider_bottom-space slds-media_center">
-
-                                    <button class="slds-button slds-button_neutral" style="border: none;">Check</button>
-                                </div>
-                                <div class="slds-media slds-no-space slds-has-divider_bottom-space slds-media_center">
-
-                                    <button class="slds-button slds-button_neutral">Edit</button>
-                                </div>
-                                <div class="slds-media slds-no-space slds-has-divider_bottom-space slds-media_center">
-
-                                    <button class="slds-button slds-button_neutral">Commit</button>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-
-                </apex:outputPanel>
+                </apex:outputpanel>
 
                 <!-- / FOOTER -->
             </div>
