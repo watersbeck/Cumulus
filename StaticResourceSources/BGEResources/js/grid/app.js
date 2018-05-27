@@ -2,60 +2,58 @@
 
     var myApp = angular.module('myApp', ['ngHandsontable', 'ngSanitize']);
 
-    myApp.controller('MainCtrl', function ($scope, $compile, $timeout) {
+    myApp.controller('MainCtrl', function ($scope, $compile, $timeout, $window) {
 
-        var changesToSave = [];
+        $scope.nextPageAction = nextPageAction;
+        $scope.prevPageAction = prevPageAction;
+        $scope.backAction = backAction;
 
-        BGE_HandsOnGridController.initGrid({batchId: batchId}, onInitHandler)
+        BGE_HandsOnGridController.initGrid({batchId: batchId}, onInitHandler);
 
         function onInitHandler(result, event) {
 
             // console.warn('BGE - onInitHandler');
 
+            $scope.templateId = result.templateId;
+            $scope.selectPopper = undefined;
+            $scope.isIndexLoading = false;
+            $scope.isTableLoaded = false; // Needed for afterCreateRow:as it fires before afterInit: & confuses all
+            $scope.pageChangeLoader = false;
+
+            if (!$scope.templateId || $scope.templateId == null) {
+                $scope.templateId = false;
+                $scope.isTableLoaded = true;
+                $scope.$apply();
+                return;
+            }
+
+            $scope.templateId = true;
+
             $scope.rowsCount = result.rowsCount;
             $scope.rowsAmount = result.rowsAmount;
+
             $scope.offset = 0;
-            $scope.totalPages = Math.ceil(result.rowsCount / 50);
             $scope.columnsData = result.columns;
-            $scope.prevButonEnabled = false;
+            $scope.rowsData = result.data;
+            $scope.totalPages = Math.ceil($scope.rowsCount / 50) + 1;
+            $scope.prevButonDisabled = true;
+            $scope.nextButonDisabled = false;
             $scope.rowErrors = {};
 
             console.debug(result);
 
             $scope.lastSelectedRow = null;
-            $scope.isTableLoaded = false; // Needed for afterCreateRow:as it fires before afterInit: & confuses all
-            $scope.isIndexLoading = false;
 
-            $scope.tableWidth = window.innerWidth * 91 / 100;
-            $scope.tableHeight = window.innerHeight * 70 /100;
+            $scope.tableWidth = window.innerWidth * .985;
+            $scope.tableHeight = window.innerHeight - 130;
 
-            $scope.nextPageAction = nextPageAction;
-            $scope.prevPageAction = prevPageAction;
-
-            // Flag that is set true if the user have just pressed the up arrow key.
-            wasUpArrowPressed = false;
-
-            //Map to save cells with invalid format values
-            movedSideWays = false;
-
-            wait = false;
-            updatedCellsMap = {};
-
-            var changesToSave = {};
-
-
-            // Flag to prevent a bug when deleting multiple records.
-            var deletingRecords = false;
-
-            var dynamicColumns = [];
+            $scope.removeRowOnColumnAction = removeRowOnColumnAction;
 
             var table = document.getElementById('my-hot-table');
 
-            console.log(result.data);
-
             hot = new Handsontable(table, {
 
-                data: result.data,
+                data: $scope.rowsData,
 
                 outsideClickDeselects: false, //you must add this, otherwise getSelected() will return 'undefined'
                 columnSorting: true,
@@ -82,7 +80,6 @@
 
                 cells: cellsHandler,
                 afterInit: afterInitHandler,
-                afterRender: afterRenderHandler,
                 beforeRemoveRow: beforeRemoveRowHandler,
                 afterRemoveRow: afterRemoveRowHandler,
                 afterChange: afterChangeHandler,
@@ -94,6 +91,14 @@
             });
 
             $scope.$apply();
+
+            //Map to save cells with invalid format values
+            movedSideWays = false;
+        }
+
+        function backAction() {
+
+            $window.location.href = '/' + batchId;
         }
 
         function prevPageAction() {
@@ -101,6 +106,7 @@
 
             if ($scope.offset > 0) {
                 $scope.offset --;
+                $scope.nextButonDisabled = false;
                 changePageHandler();
             }
         }
@@ -108,24 +114,57 @@
         function nextPageAction() {
 
             $scope.offset ++;
+
+            if ($scope.offset >= $scope.totalPages - 1) {
+                $scope.offset = $scope.totalPages - 1;
+                $scope.nextButonDisabled = true;
+            }
+
             changePageHandler();
+        }
+
+        function removeRowOnColumnAction() {
+
+            var row = hot.getSelected()[0];
+
+            console.log('removeRowOnColumnAction', row);
+
+            hot.alter('remove_row', row);
+
+            $timeout(function() {
+                hot.render();
+                updateSummaryData();
+            }, 200);
         }
 
         function changePageHandler() {
 
-            $scope.isTableLoaded = false;
-
+            $scope.pageChangeLoader = true;
             BGE_HandsOnGridController.changePageGrid({batchId: batchId, offset: $scope.offset}, changePageGridHandler)
 
             function changePageGridHandler(result, event) {
 
-                $scope.prevButonEnabled = true;
+                $scope.prevButonDisabled = true;
                 if ($scope.offset > 0) {
-                    $scope.prevButonEnabled = false;
+                    $scope.prevButonDisabled = false;
                 }
 
                 hot.loadData(result.data);
-                $scope.isTableLoaded = true;
+                $scope.pageChangeLoader = false;
+
+                var totalColumns = hot.countCols();
+                var totalRows = hot.countRows();
+    
+                for (var indexRow = 0; indexRow < totalRows; indexRow++) {
+    
+                    var cellValue = hot.getDataAtCell(indexRow, hot.propToCol('Id'));
+                    if (cellValue == null) {
+                        hot.setDataAtCell(indexRow, hot.propToCol('Id'), Date.now().toString(), 'manual');
+                    }
+                }
+
+                // clean errors when changing pages
+                $scope.rowErrors = {};
 
                 $scope.$apply();
             }
@@ -142,8 +181,6 @@
             else if (prop == 'Actions') {
                 return { type: { renderer: actionCellsRenderer } };
             }
-
-
         }
 
         /**
@@ -162,7 +199,7 @@
 
         function afterInitHandler() {
 
-            // console.warn('HOT - afterInitHandler');
+            console.warn('HOT - afterInitHandler');
 
             $scope.isTableLoaded = true;
             $scope.isIndexLoading = true;
@@ -176,36 +213,6 @@
                 if (cellValue == null) {
                     this.setDataAtCell(indexRow, this.propToCol('Id'), Date.now().toString(), 'manual');
                 }
-
-                for (var indexCol = 0; indexCol < totalColumns; indexCol++) {
-
-                    var cellType = this.getDataType(indexRow, indexCol);
-
-                    if (cellType === 'date') {
-
-                        cellValue = this.getDataAtCell(indexRow, indexCol);
-
-                        if (cellValue != null) {
-
-                            // get date valie displayed in milliseconds
-                            var dateOriginalMilliseconds = new Date(cellValue);
-
-                            // create a new milliseconds date value that match with UTC time (getTimezoneOffset function retrieve value in seconds)
-                            var dateUTCMilliseconds = cellValue + ((dateOriginalMilliseconds.getTimezoneOffset() * 60 * 1000));
-
-                            // create new date using UTC milliseconds value
-                            var dateUTC = new Date(dateUTCMilliseconds);
-
-                            // format to ISO standard format
-                            var dateISOFormatted = dateUTC.toISOString();
-
-                            // set correct data in cell
-                            this.setDataAtCell(indexRow, indexCol, dateISOFormatted, 'manual');
-                        }
-                    }
-
-                }
-
             }
 
             $scope.isIndexLoading = false;
@@ -214,24 +221,23 @@
             renderBindings();
         }
 
-        function afterRenderHandler(isForced) {
-
-            console.warn('HOT - afterRenderHandler');
-
-        }
-
         function beforeRemoveRowHandler(index, amount, visualRows) {
 
             console.warn('HOT - beforeRemoveRowHandler');
+            deleteRow(index, amount, visualRows);
+        }
+
+        function deleteRow(index, amount, visualRows, callback) {
+
             console.log(index, amount);
             console.log(visualRows);
 
             var rowRecordIds = [];
-            var columnIndex = this.propToCol('Id');
+            var columnIndex = hot.propToCol('Id');
 
             visualRows.forEach(function(element) {
 
-                var rowRecordId = hot.getDataAtCell(element,columnIndex);
+                var rowRecordId = hot.getDataAtCell(element, columnIndex);
                 rowRecordIds.push(rowRecordId);
 
                 var requestData = {
@@ -241,7 +247,12 @@
 
                 BGE_HandsOnGridController.deleteRowsGrid(requestData, deleteRowsGridHandler);
 
-                function deleteRowsGridHandler(result, event) {};
+                function deleteRowsGridHandler(result, event) {
+
+                    if (callback) {
+                        callback();
+                    }
+                };
             });
         }
 
@@ -260,6 +271,8 @@
 
             if (sourceOptions.includes(source) && !$scope.isIndexLoading) {
 
+                console.log('CHANGES:    ', changes);
+
                 var cellRecords = [];
 
                 for (var i = 0; i < changes.length; i ++) {
@@ -271,10 +284,6 @@
                         var col = this.propToCol(changes[i][1])
                         var cellType = this.getDataType(changes[i][0], col);
                         var newValue = changes[i][3];
-
-                        if (cellType == 'date') {
-                            newValue = (new Date(newValue)).getTime().toString();
-                        }
 
                         var cellRecord = {
                             row: changes[i][0],
@@ -288,6 +297,34 @@
                         if (cellRecord.newValue && (newValue !== 'NaN') && (cellRecord.oldValue !== cellRecord.newValue)) {
                             cellRecords.push(cellRecord);
                         }
+                        else if ((newValue == 'NaN') && (cellType == 'date')) {
+
+                            if (!$scope.rowErrors[cellRecord.recordId] || ($scope.rowErrors[cellRecord.recordId] && $scope.rowErrors[cellRecord.recordId].length == 0)) {
+                                $scope.rowErrors[cellRecord.recordId] = [];
+                                $scope.rowErrors[cellRecord.recordId].push({field: cellRecord.field, messages: 'Illegal assignment from String to Date'});
+                            }
+                            else {
+
+                                var isFieldIn = false;
+                                $scope.rowErrors[cellRecord.recordId].forEach(function(element){
+
+                                    console.log(element.field, cellRecord.field)
+                                    if (element.field === cellRecord.field) {
+                                        element.messages = 'Illegal assignment from String to Date';
+                                        isFieldIn = true;
+                                    }
+                                });
+
+                                if (!isFieldIn) {
+                                    $scope.rowErrors[cellRecord.recordId].push({field: cellRecord.field, messages: 'Illegal assignment from String to Date'});
+                                }
+                            }
+
+                            $timeout(function() {
+                                hot.render();
+                            }, 500);
+                        }
+
                     }
                     else {
                         updateSummaryData();
@@ -316,39 +353,72 @@
 
                             console.log(cellResponse);
 
-                            if (cellResponse.sfdcid) {
-                                // setDataAtCell ALWAYS TRIGGER A FULL TABLE RENDER - USE WITH CARE AND IN BULK WHERE POSSIBLE
-                                hot.setDataAtCell(cellResponse.row, hot.propToCol('Id'), cellResponse.sfdcid, 'manual');
-                            }
-
                             var errCell = hot.getCellMeta(cellResponse.row, hot.propToCol(cellResponse.field));
 
-                            $scope.rowErrors[cellResponse.recordId] = [];
+                            // $scope.rowErrors[cellResponse.recordId] = [];
 
                             if (cellResponse.errors) {
+
+                                console.log(cellResponse.errors);
 
                                 errCell.valid = false;
                                 errCell.hasError = true;
 
-                                if (!$scope.rowErrors[cellResponse.recordId]) {
+                                if (!$scope.rowErrors[cellResponse.recordId] || ($scope.rowErrors[cellResponse.recordId] && $scope.rowErrors[cellResponse.recordId].length == 0)) {
                                     $scope.rowErrors[cellResponse.recordId] = [];
+                                    $scope.rowErrors[cellResponse.recordId] = cellResponse.errors;
                                 }
+                                else {
 
-                                $scope.rowErrors[cellResponse.recordId] = cellResponse.errors;
+                                    var isFieldIn = false;
+                                    $scope.rowErrors[cellResponse.recordId].forEach(function(element){
+
+                                        if (element.field === cellResponse.field) {
+                                            element.messages = cellResponse.messages
+                                            isFieldIn = true;
+                                        }
+                                    });
+
+                                    if (!isFieldIn) {
+                                        $scope.rowErrors[cellResponse.recordId] = $scope.rowErrors[cellResponse.recordId].concat(cellResponse.errors);
+                                    }
+                                }
 
                                 debugRowErrors = $scope.rowErrors;
                             }
-                            else {
+                            else if ($scope.rowErrors[cellResponse.recordId]) {
 
                                 errCell.valid = true;
                                 errCell.hasError = false;
+
+                                for (var index = 0; index < $scope.rowErrors[cellResponse.recordId].length; index ++) {
+
+                                    var element = $scope.rowErrors[cellResponse.recordId][index];
+
+                                    if (element.field === cellResponse.field) {
+                                        $scope.rowErrors[cellResponse.recordId].splice(index, 1);
+                                    }
+                                }
+                            }
+
+
+                            if (cellResponse.sfdcid) {
+                                // setDataAtCell ALWAYS TRIGGER A FULL TABLE RENDER - USE WITH CARE AND IN BULK WHERE POSSIBLE
+                                hot.setDataAtCell(cellResponse.row, hot.propToCol('Id'), cellResponse.sfdcid, 'manual');
+
+                                if (cellResponse.sfdcid !== cellResponse.recordId) {
+
+                                    if ($scope.rowErrors[cellResponse.recordId] && $scope.rowErrors[cellResponse.recordId].length > 0) {
+                                        $scope.rowErrors[cellResponse.sfdcid] = $scope.rowErrors[cellResponse.recordId];
+                                    }
+                                }
                             }
 
                             $timeout(function() {
 
                                 hot.render();
                                 updateSummaryData();
-                            }, 500);
+                            }, 200);
                         });
                     }
                 }
@@ -365,10 +435,14 @@
          * When HOT starts - it sets the initial row on the last selected ROW.
          * @param {*} row
          */
-        function afterSelectionHandler(row) {
+        function afterSelectionHandler(row, col) {
 
             if ($scope.lastSelectedRow === null) {
                 $scope.lastSelectedRow = row;
+            }
+
+            if (col < 2) {
+                hot.selectCell(row, 3);
             }
         }
 
@@ -448,6 +522,26 @@
             }
         }
 
+        function beforeRendererHandler(td, row, col, prop, value, cellProperties) {
+
+            if (prop != 'Actions' && prop != 'Errors') {
+
+                if (value != null && value.toString().match(/^\d+$/)) {
+
+                    var cellType = this.getDataType(row, col);
+
+                    if (cellType === 'date') {
+
+                        var strValue = value.toString();
+
+                        value = formatDateValue(strValue);
+
+                        this.setDataAtCell(row, col, value);
+                    }
+                }
+            }
+        }
+
         /// Auxiliary Methods
 
         function getCellDataType(sfdcDatatype) {
@@ -517,13 +611,11 @@
 
             var actionCol = new Object();
             actionCol.title = 'ACTIONS';
-            // actionCol.type = 'text';
             actionCol.data = 'Actions';
             actionCol.disableVisualSelection = true;
             actionCol.manualColumnResize =  true;
-            actionCol.colWidths = 65;
-            actionCol.className = "htCenter htMiddle";
-            // actionCol.renderer = actionCellsRenderer;
+            actionCol.colWidths = 80;
+            actionCol.className = "htCenter htMiddle action-cell";
             frozenColumns.push(actionCol);
 
             for (var i = 0; i < $scope.columnsData.length; i++) {
@@ -542,38 +634,42 @@
                 col.className = "htLeft htMiddle slds-truncate";
 
                 if (templateField.type === "DATE") {
-                    // col.dateFormat = "YYYY-MM-DD";
-                    col.dateFormat = 'MM/DD/YYYY';
-                    col.className = "htRight htMiddle slds-truncate custom-date";
+                    col.dateFormat = 'M/D/YYYY';
+                    col.className = "htLeft htMiddle slds-truncate custom-date";
                     col.correctFormat = true;
-                    col.renderer = dateCellRenderer;
                 }
                 else if (templateField.type === "CURRENCY") {
                     col.format = '$0,0.00'
                     col.className = "htRight htMiddle slds-truncate";
-                    col.title = templateField.label.toUpperCase();
+                    col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
                 }
                 else if (templateField.type === "DECIMAL") {
                     col.format = '0.00';
                     col.className = "htRight htMiddle slds-truncate";
-                    col.title = '<div style="float: right">' + templateField.label.toUpperCase() + '</div>';
+                    col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
                 }
                 else if (templateField.type === "NUMBER") {
                     col.format = '0';
                     col.className = "htRight htMiddle slds-truncate";
-                    col.title = '<div style="float: right">' + templateField.label.toUpperCase() + '</div>';
+                    col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
                 }
                 else if (templateField.type === "EMAIL") {
 
                 }
                 if (templateField.type === "PICKLIST") {
 
+                    col.strict = true;
+
                     // Check if by any change the list containing picklist values are null empty or undefined.
                     if (templateField.picklistValues) {
 
                          // allowInvalid: false - does not allow manual input of value that does not exist in the source.
                          // In this case, the ENTER key is ignored and the editor field remains opened.
-                        col.source = Object.values(templateField.picklistValues);
+                        col.source = Object.keys(templateField.picklistValues);
+
+                        if (templateField.isRecordType) {
+                            $scope.recordTypeMap = templateField.picklistValues;
+                        }
                     }
                 }
 
@@ -610,11 +706,12 @@
             messageSectionDiv.className = 'slds-popover__body';
 
             var messageSectionDivList = document.createElement('ul');
+            messageSectionDivList.style.listStyleType = 'disc';
 
             errors.forEach(function(errorElement) {
 
                 var messageSectionDivListElement = document.createElement('li');
-                messageSectionDivListElement.innerHTML = errorElement.fields.join() + " : " + errorElement.messages.join();
+                messageSectionDivListElement.innerHTML = errorElement.field + " : " + errorElement.messages;
                 messageSectionDivList.appendChild(messageSectionDivListElement);
             })
 
@@ -623,7 +720,7 @@
             document.body.appendChild(messageSection);
 
             var popper = new Popper(cell, messageSection, {
-                placement: 'right'
+                placement: 'top-end'
             });
         }
 
@@ -633,30 +730,14 @@
 
         function renderBindings() {
 
-            $('.action-items').click(function(event) {
-
-                event.preventDefault();
-
-                var optionSelect = document.createElement('select');
-                // messageSection.className = 'slds-popover slds-nubbin_left slds-theme_error tooltip-error';
-
-                var optionSelectOption = document.createElement('option');
-                optionSelectOption.value = 'delete row';
-                optionSelectOption.innerHTML = 'delete row';
-
-                optionSelect.appendChild(optionSelectOption);
-
-                var popper = new Popper(this, optionSelectOption, {
-                    placement: 'right'
-                });
-            });
-
             if (window.attachEvent) {
                 window.attachEvent('onresize', updateHotTable);
             }
             else {
                 window.addEventListener('resize', updateHotTable, true);
             }
+
+            $(".amount-style").parent().css('text-align', 'right');
         }
 
         function updateSummaryData() {
@@ -667,17 +748,26 @@
 
                 $scope.rowsCount = result.rowsCount;
                 $scope.rowsAmount = result.rowsAmount;
+                $scope.totalPages = Math.ceil($scope.rowsCount / 50) + 1;
+
+                if ($scope.offset >= $scope.totalPages - 1) {
+                    $scope.nextButonDisabled = true;
+                }
+                else {
+                    $scope.nextButonDisabled = false;
+                }
+
                 $scope.$apply();
             }
         }
 
         function updateHotTable() {
 
-            var newWidth = window.innerWidth * .91;
-            var newHeight = window.innerHeight * .70;
-    
+            var newWidth = window.innerWidth * .985;
+            var newHeight = window.innerHeight - document.getElementById("my-hot-table").offsetTop - 27;
+
             if (hot) {
-    
+
             }
             hot.updateSettings({
                 width: newWidth,
@@ -687,40 +777,24 @@
 
         // Renderers
 
-        function dateCellRenderer(instance, td, row, col, prop, value, cellProperties) {
-
-            Handsontable.DateCell.renderer.apply(this, arguments);
-        }
-
         function emailCellRenderer(instance, td, row, col, prop, value, cellProperties) {
 
 
         }
 
-        //To display action column icons
         function actionCellsRenderer(instance, td, row, col, prop, value, cellProperties) {
 
-            Handsontable.renderers.TextRenderer.apply(this, arguments);
+            var selectElement = getLightningPicklist();
 
-            Handsontable.dom.addEvent(td, 'click', function (e) {
+            Handsontable.dom.addEvent(selectElement, 'click', function (e) {
                 e.preventDefault(); // prevent selection quirk
             });
 
-            var dataRowId = instance.getDataAtRowProp(row, 'Id');
+            Handsontable.dom.empty(td);
+            td.appendChild(selectElement);
 
-            var isDisabled = 'disabled=\"false\"';
+            td.className = 'action-cell';
 
-            var actionsMenu = '';
-
-            if (dataRowId) {
-                actionsMenu = '<div class="action-options slds-m-top slds-hide" style="position:absolute;"><div class="slds-popover toggle" style="position:absolute; width: 11em;" role="tooltip"><div class="slds-popover__body" style="padding: 0 !important"><div class="slds-media slds-no-space slds-has-divider_bottom-space slds-media_center"><button class="slds-button slds-button_neutral remove-my-row" style="border: none;">Remove row</button></div></div></div></div>';
-            }
-
-            // var actionIcon = '<div>' + actionsMenu + '<button class="slds-button slds-button_icon slds-button_icon-border-filled" onClick="displayActionMenu(' + row + ');"><svg class="slds-icon slds-icon-text-default slds-icon_x-small" aria-hidden="true"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="/apexpages/slds/latest/assets/icons/utility-sprite/svg/symbols.svg#down" /></svg></button></div>';
-            // var actionsMenu = '<div class="action-options slds-m-top slds-hide" style="position:absolute;"><div class="slds-popover toggle" style="position:absolute; width: 11em;" role="tooltip"><div class="slds-popover__body" style="padding: 0 !important"><div class="slds-media slds-no-space slds-has-divider_bottom-space slds-media_center"><button class="slds-button slds-button_neutral" style="border: none;">Remove row</button></div></div></div></div>';
-            var actionIcon = '<div class="action-global">' + actionsMenu + '<button class="slds-button slds-button_icon slds-button_icon-border-filled slds-button_icon-x-small action-items" tabindex="-1" title="Actions"><svg class="slds-button__icon slds-button__icon_hint slds-button__icon_small" aria-hidden="true"><use xlink:href="/apexpages/slds/latest/assets/icons/utility-sprite/svg/symbols.svg#down"></use></svg><span class="slds-assistive-text">Actions</span></button></div>';
-
-            td.innerHTML = actionIcon;
             return td;
         }
 
@@ -787,269 +861,47 @@
             }, 1000);
         };
 
-        /// LEGACY Methods
+        function getLightningPicklist() {
 
-        function getColumnFromName(name) {
-            return -1;
+            var divControl = document.createElement('div');
+
+            divControl.className = 'slds-dropdown-trigger slds-dropdown-trigger_click picklist-click';
+
+            var divButton = document.createElement('button');
+            divButton.className = 'slds-button slds-button_icon slds-button_icon-border-filled';
+            divButton.setAttribute('aria-haspopup', 'true');
+            divButton.setAttribute('data-jq-dropdown','#jq-dropdown-1');
+            divButton.style.height = "25px";
+            divButton.style.width = "25px";
+
+            var iconImage = document.createElement('img');
+            iconImage.className = 'slds-button__icon';
+            iconImage.src = resourcePath + '/icons/click.png';
+            iconImage.style.cursor = "pointer";
+
+            divButton.appendChild(iconImage);
+            divControl.appendChild(divButton);
+
+            return divControl;
         }
 
-        function validateRequiredFields(row, messages, onMass) {
-
-            var cellsMeta = hot.getCellsMeta();
-            var col = 0;
-
-            if (!onMass) {
-                row = row - 1;
-            }
-
-            if (!messages) {
-                messages = [];
-            } else if (messages.length > 0) {
-                // messages.push('\<br\>');
-            }
-
-            cellsMeta.forEach(function (cell) {
-
-                var value = hot.getDataAtCell(row, col);
-
-                if (cell && cell.row == row) {
-
-                    // FIRST OF ALL - INIT Validation values
-                    // cell.valid = true;
-
-                    if (cell.required && !value) {
-
-                        cell.valid = false;
-                        messages.push(cell.data + ' field is required');
-                    } else if (cell.hasError) {
-                        cell.valid = false;
-                    } else if (cell.hasError != undefined && !cell.hasError) {
-
-                        cell.valid = true;
-                    }
-
-                    //Get cell errors, for errors of type format (like email) - To outline the cell on red.
-                    var indexMap = cell.row + cell.prop;
-                    var cellOnMass = updatedCellsMap[indexMap];
-
-                    if (cellOnMass && cellOnMass.hasError) {
-                        cell.valid = false;
-                    }
-
-                    col++;
-                }
-            });
-            hot.validateCells = hot.render();
-
-            return messages;
-        }
-
-        function triggerSave(id, row, lastSelectedRow, self, callback) {
-
-            var dataAtLastSelectedRow = {};
-
-            if (!dataAtLastSelectedRow[id]) {
-
-                dataAtLastSelectedRow[id] = {};
-            }
-
-            // LOAD COMPLETE DATA IMPORT ROW AND SEND TO PROCESS
-            for (var i = 0; i < dynamicColumns.length; i++) {
-
-                var prop = dynamicColumns[i].data;
-                var type = dynamicColumns[i].type;
-                var cellValue = self.getDataAtRowProp($scope.lastSelectedRow, prop);
-
-                if (cellValue != undefined) {
-
-                    dataAtLastSelectedRow[id][prop] = cellValue;
-
-                    if (cellValue == '' && type == 'date') {
-
-                        dataAtLastSelectedRow[id][prop] = null;
-                    }
-                }
-            }
-
-            // Get Batch Id from URL
-            var pBatchId = getAllUrlParams().batchid;
-
-            console.log('new row');
-
-            var totalColumns = self.countCols();
-
-            var recordCell = self.getCell($scope.lastSelectedRow, totalColumns - 1);
-
-            if (data) {
-
-                Visualforce.remoting.Manager.invokeAction(
-                    '{!$RemoteAction.BGE_HandsOnGridController.save}',
-                    id,
-                    pBatchId,
-                    JSON.stringify(dataAtLastSelectedRow),
-
-                    function (result, event) {
-
-                        callback(result, $(recordCell).text());
-
-                        $scope.$apply();
-                    }
-                );
-
-                Visualforce.remoting.Manager.invokeAction(
-                    '{!$RemoteAction.BGE_HandsOnGridController.calculateTotalOfRecords}',
-                    pBatchId,
-                    function (result) {
-
-                        document.getElementById("totalOfRecords").value = result;
-                    });
-            }
-
-        }
-
-        function reloadCurrentPageOfTheGrid() {
-
-            var pBatchId = getAllUrlParams().batchid;
-
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.BGE_HandsOnGridController.changePage}',
-                pBatchId, offset,
-                function (result, event) {
-
-                    hot.loadData(result);
-                });
-        }
-
-        function calculateTotalPages(pTotalOfRecords) {
-
-            var result = 0;
-            var module = pTotalOfRecords % 50;
-
-            if (module >= 0) {
-
-                result = (pTotalOfRecords / 50) + 1;
-            } else {
-
-                result = Math.floor(pTotalOfRecords / 50);
-            }
-
-            return parseInt(result);
-        }
-
-        function triggerDryRunProcess() {
-
-            $('.dryrunbutton').on('click', function () {
-
-                var pBatchId = getAllUrlParams().batchid;
-
-                Visualforce.remoting.Manager.invokeAction(
-                    '{!$RemoteAction.BGE_HandsOnGridController.dryRunProcess}',
-                    pBatchId,
-                    function (result, event) {
-
-                        if (result != null && result.success) {
-
-                            return;
-                        }
-
-                        $scope.$apply();
-                    }
-                );
-            });
-        }
-
-        function triggerDeleteAll() {
-
-            $('.deletebutton').on('click', function () {
-
-                var selection = hot.getSelected();
-
-                if (selection != undefined) {
-
-                    var r = confirm("Delete record?");
-
-                    if (r == true) {
-
-                        // Set the flag on true so the "before remove" event does not fire the individual remove function hence showing an exception error.
-                        deletingRecords = true;
-
-                        var start = selection[0];
-                        var end = selection[2];
-                        var gridData = hot.getData();
-                        var batchIds = [];
-
-                        if (start <= end) {
-
-                            for (var r = start; r <= end; r++) {
-
-                                var row = gridData[r];
-                                var dataRowId = row[getColumnFromName('Id')];
-
-                                batchIds.push(dataRowId);
-                            }
-                        } else {
-
-                            for (i = -start; i <= -end; i++) {
-
-                                var row = gridData[-i];
-                                var dataRowId = row[getColumnFromName('Id')];
-                                batchIds.push(dataRowId);
-                            }
-                        }
-
-
-                        Visualforce.remoting.Manager.invokeAction(
-                            '{!$RemoteAction.BGE_HandsOnGridController.deleteAll}',
-                            batchIds,
-                            function (result, event) {
-
-                                $scope.$apply();
-                            }
-                        );
-
-
-                        if (start <= end) {
-
-                            // If selection starts from the first row.
-                            if (gridData[start - 1] !== null && gridData[end + 1]) {
-
-                                hot.alter('remove_row', start, end);
-                            } else {
-
-                                hot.alter('remove_row', start, end + 1);
-                            }
-                        } else {
-
-                            hot.alter('remove_row', end, start + 1);
-                        }
-
-                        hot.deselectCell();
-
-                        // Set the flag back on false so we can continue deleting records individualy.
-                        deletingRecords = false;
-                    } else {
-
-                        return false;
-                    }
-                } else {
-
-                    alert("please select cell first");
-                }
-            });
-        }
-
-        function displayActionMenu(row) {
-
-            if ($('#' + row + 'menu').hasClass('slds-hide')) {
-
-                $('.is-displayed').addClass("slds-hide");
-                $('.is-displayed').removeClass("is-displayed");
-                $('#' + row + 'menu').removeClass("slds-hide");
-                $('#' + row + 'menu').addClass("is-displayed");
-
-            } else {
-                $('#' + row + 'menu').addClass("slds-hide");
-            }
+        function getLightningPicklistOption(option) {
+
+            var liElement = document.createElement('li');
+            liElement.setAttribute('role', 'presentation');
+            liElement.className = 'slds-dropdown__item';
+
+            var liLinkElement = document.createElement('a');
+            liLinkElement.role = 'menuitem';
+            liLinkElement.setAttribute('href', 'javascript:void(0);');
+
+            var liLinkSpanElement = document.createElement('span');
+            liLinkSpanElement.className = 'slds-truncate';
+            liLinkSpanElement.setAttribute('title', option);
+            liLinkElement.appendChild(liLinkSpanElement);
+            liElement.appendChild(liLinkElement);
+
+            return liElement;
         }
 
     });
