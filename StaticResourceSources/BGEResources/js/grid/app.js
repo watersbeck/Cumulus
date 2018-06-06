@@ -64,7 +64,6 @@
                 sortIndicator: true,
                 fillHandle: true,
                 autoWrapRow: true,
-                currentRowClassName: 'current-row',
                 stretchH: 'all',
                 minSpareRows: 0,
                 width: $scope.tableWidth,
@@ -508,12 +507,12 @@
             if (event.keyCode === 9 || event.keyCode === 39) {
 
                 // Tab or right arrow was pressed
-                movedSideWays = true;
+                // movedSideWays = true;
 
                 var selection = hot.getSelected();
                 var rowIndex = selection[0];
                 var colIndex = selection[1];
-                var numerOfColumns = hot.countCols();
+                var numberOfColumns = hot.countCols();
 
                 if (colIndex === 0) {
 
@@ -661,6 +660,7 @@
                     col.format = '$0,0.00'
                     col.className = "htRight htMiddle slds-truncate";
                     col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
+
                 }
                 else if (templateField.type === "DECIMAL") {
                     col.format = '0.00';
