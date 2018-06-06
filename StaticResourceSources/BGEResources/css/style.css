@@ -9,10 +9,6 @@
     max-width: 300px;
 }
 
-.current-row {
-    background-color: #F9F9FB !important;
-}
-
 /* All headers */
 
 .handsontable th {
@@ -116,7 +112,6 @@
 }
 
 /* Edit mode */
-
 .handsontableInput {
     vertical-align: middle;
     text-align: center;
