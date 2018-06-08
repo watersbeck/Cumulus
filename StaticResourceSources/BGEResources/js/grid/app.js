@@ -661,22 +661,26 @@
 
                 if (templateField.type === "DATE") {
                     col.dateFormat = 'M/D/YYYY';
+                    col.colWidths = 175;
                     col.className = "htLeft htMiddle slds-truncate custom-date";
                     col.correctFormat = true;
                 }
                 else if (templateField.type === "CURRENCY") {
                     col.format = '$0,0.00'
+                    col.colWidths = 100;
                     col.className = "htRight htMiddle slds-truncate";
                     col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
 
                 }
                 else if (templateField.type === "DECIMAL") {
                     col.format = '0.00';
+                    col.colWidths = 100;
                     col.className = "htRight htMiddle slds-truncate";
                     col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
                 }
                 else if (templateField.type === "NUMBER") {
                     col.format = '0';
+                    col.colWidths = 100;
                     col.className = "htRight htMiddle slds-truncate";
                     col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
                 }
@@ -686,6 +690,7 @@
                 if (templateField.type === "PICKLIST") {
 
                     col.strict = false;
+                    col.colWidths = 250;
 
                     // Check if by any change the list containing picklist values are null empty or undefined.
                     if (templateField.picklistValues) {
