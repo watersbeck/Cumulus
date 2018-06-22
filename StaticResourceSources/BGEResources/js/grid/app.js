@@ -337,7 +337,7 @@
 
                                 var regex = /\d{1,2}\/\d{1,2}\/\d{4}/g;
 
-                                if (cellRecord.newValue && !cellRecord.newValue.match(regex)) {
+                                if (cellRecord.newValue && (this.getDataType(changes[i][0], this.propToCol(changes[i][1])) == 'date') && !cellRecord.newValue.match(regex)) {
 
                                     cellRecord.newValue = sanitizeDateFormat(newValue);
                                 }
