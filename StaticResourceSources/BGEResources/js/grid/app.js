@@ -12,8 +12,6 @@
 
         function onInitHandler(result, event) {
 
-            console.log(result);
-
             $scope.templateId = result.templateId;
             $scope.selectPopper = undefined;
             $scope.isIndexLoading = false;
@@ -76,6 +74,7 @@
                 fixedColumnsLeft: 3,
                 columns: getHotColumns(),
                 contextMenu: ['remove_row'],
+                manualColumnResize: true,
                 renderAllRows: true,
 
                 cells: cellsHandler,
@@ -88,7 +87,8 @@
                 afterSelectionEnd: afterSelectionEndHandler,
                 afterOnCellMouseDown: afterOnCellMouseDownHandler,
                 afterCreateRow: afterCreateRowHandler,
-                beforeKeyDown: beforeKeyDownHandler
+                beforeKeyDown: beforeKeyDownHandler,
+                modifyColWidth: modifyColWidthHandler
             });
 
             $scope.$apply();
@@ -168,9 +168,7 @@
             }
         }
 
-
         function cellsHandler(row, col, prop) {
-
             if (prop === 'Errors') {
                 return { type: { renderer: tooltipCellRenderer } };
             }
@@ -186,17 +184,26 @@
          * @param {*} event
          * @param {*} coords
          */
-        function afterOnCellMouseDownHandler(event, coords) {
+        function afterOnCellMouseDownHandler(event, coords, td) {
 
             if (coords.row < 0) {
                 hot.deselectCell();
             }
+
+            var now = new Date().getTime();
+            if(!(td.lastClick && now - td.lastClick < 200)) {
+                td.lastClick = now;
+                return;
+            }
+
+            var editor =  hot.getActiveEditor();
+            var colType = hot.getDataType(coords.row, coords.col);
+            if (colType == "dropdown") {
+                editor.TEXTAREA.setAttribute("disabled", "true");
+            }
         }
 
         function afterInitHandler() {
-
-            // console.warn('HOT - afterInitHandler');
-
             $scope.isTableLoaded = true;
             $scope.isIndexLoading = true;
 
@@ -217,9 +224,27 @@
         }
 
         function beforeRemoveRowHandler(index, amount, visualRows) {
-
-            // console.warn('HOT - beforeRemoveRowHandler');
             deleteRow(index, amount, visualRows);
+        }
+
+        function modifyColWidthHandler(width, col) {
+
+            if(col === 0){
+
+                return 5;
+            }
+            else if (col === 1) {
+
+                return 30;
+            }
+            else if (col === 2) {
+
+                return 80;
+            }
+            else {
+
+                return width;
+            }
         }
 
         function deleteRow(index, amount, visualRows, callback) {
@@ -249,9 +274,6 @@
         }
 
         function afterRemoveRowHandler(index, amount) {
-
-            // console.warn('HOT - afterRemoveRowHandler');
-
             updateSummaryData();
         }
 
@@ -260,8 +282,6 @@
         }
 
         function afterChangeHandler(changes, source) {
-
-            // console.warn('HOT - afterChangeHandler', source);
 
             var sourceOptions = ['edit', 'autofill', 'paste'];
 
@@ -371,8 +391,6 @@
                     if (result && result.length > 0) {
 
                         result.forEach(function(cellResponse) {
-
-                            // console.log(cellResponse);
 
                             var errCell = hot.getCellMeta(cellResponse.row, hot.propToCol(cellResponse.field));
 
@@ -487,9 +505,21 @@
 
         function beforeKeyDownHandler(event) {
 
-            if (event.keyCode === 9 || event.keyCode === 37 || event.keyCode === 39) {
+            var selection = hot.getSelected();
+            var rowIndex = selection[0];
+            var colIndex = selection[1];
 
-                var selection = hot.getSelected();
+            var selectedColType = hot.getDataType(rowIndex, colIndex);
+
+            var editor =  hot.getActiveEditor();
+
+            if (selectedColType == "dropdown") {
+                if (event.keyCode != 9 && event.keyCode != 37 && event.keyCode != 38 && event.keyCode != 39 && event.keyCode != 40) {
+                    cancelActiveEditor(editor);
+                }
+            }
+
+            if (event.keyCode === 9 || event.keyCode === 37 || event.keyCode === 38 || event.keyCode === 39 || event.keyCode === 40) {
 
                 var rowIndex = selection[0];
                 var colIndex = selection[1];
@@ -505,12 +535,7 @@
                 var shiftKeyIsPressed = event.shiftKey;
 
 
-                // Enter shouldn't go into Edit mode on a cell, instead it should move to the next row.
-                if (event.keyCode === 13) {
-
-                    event.stopImmediatePropagation();
-
-                    rowIndex ++;
+                var isFirstRow = (rowIndex === 0) ? true : false;
 
                     hot.selectCell(rowIndex, colIndex);
                 }
@@ -519,8 +544,6 @@
                     // Tab or right arrow was pressed
 
                     try {
-                        console.log('ROW INDEX ',rowIndex);
-                        console.log('COLUMN INDEX ',colIndex);
                         if (colIndex === 0) {
 
                             var tooltipIcon = hot.getCell(rowIndex, 1).childNodes["0"];
@@ -572,7 +595,6 @@
                         }
                     }
                     catch(err) {
-
                         console.log(err);
                     }
                 }
@@ -616,18 +638,37 @@
                                 }
                             }
                         }
-
                         hot.selectCell(rowIndex, colIndex);
                     }
                     catch(err) {
-
                         console.log(err);
                     }
-
+                }
+                else if (event.keyCode === 38) {
+                    try {
+                        if (colIndex === 1) {
+                            colIndex = lastColumn;
+                            if (isFirstRow) {
+                                rowIndex = lastRow;
+                            }
+                            else {
+                                row --;
+                            }
+                        }
+                        hot.selectCell(rowIndex, colIndex);
+                    }
+                    catch(err) {
+                        console.log(err);
+                    }
                 }
             }
+            else if (event.keyCode === 13) {
+                event.stopImmediatePropagation();
 
+                rowIndex ++;
 
+                hot.selectCell(rowIndex, colIndex);
+            }
         }
 
         function beforeRendererHandler(td, row, col, prop, value, cellProperties) {
@@ -648,6 +689,10 @@
                     }
                 }
             }
+        }
+
+        function cancelActiveEditor(editor) {
+            editor.TEXTAREA.setAttribute("disabled", "true");
         }
 
         /// Auxiliary Methods
@@ -709,7 +754,6 @@
             errorCol.data = 'Errors';
             errorCol.className = "htCenter htMiddle tooltip-column";
             errorCol.wordWrap = true;
-            errorCol.manualColumnResize = false;
             errorCol.colWidths = 30;
             errorCol.renderer = tooltipCellRenderer;
             errorCol.readOnly = true;
@@ -718,7 +762,6 @@
             var actionCol = new Object();
             actionCol.title = 'ACTIONS';
             actionCol.data = 'Actions';
-            actionCol.manualColumnResize =  true;
             actionCol.colWidths = 80;
             actionCol.className = "htCenter htMiddle action-cell";
             frozenColumns.push(actionCol);
@@ -743,33 +786,60 @@
                     col.className = "htLeft htMiddle slds-truncate custom-date";
                     col.correctFormat = true;
                     col.datePickerConfig = { 'yearRange': [1000, 3000] }
+                    col.colWidths = 170;
                 }
                 else if (templateField.type === "CURRENCY") {
                     col.format = '$0,0.00'
                     col.className = "htRight htMiddle slds-truncate";
                     col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
+                    col.colWidths = 100;
                 }
                 else if (templateField.type === "DECIMAL") {
                     col.format = '0.00';
                     col.className = "htRight htMiddle slds-truncate";
                     col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
+                    col.colWidths = 100;
                 }
                 else if (templateField.type === "NUMBER") {
                     col.format = '0';
                     col.className = "htRight htMiddle slds-truncate";
                     col.title = '<div class="amount-style">' + templateField.label.toUpperCase() + '</div>';
+                    col.colWidths = 80;
                 }
                 else if (templateField.type === "EMAIL") {
 
                 }
+                else if (templateField.type === "BOOLEAN") {
+
+                    col.type = "checkbox";
+                    col.colWidths = 50;
+                }
+                else if (templateField.type === 'PHONE') {
+
+                    col.colWidths = 50;
+                }
+                else if (templateField.type === 'PERCENT') {
+                    col.type = "numeric";
+                    col.format = '0.000%';
+                    col.colWidths = 60;
+                }
+                else if (templateField.type === 'GEOLOCATION') {
+                    col.type = "text";
+                    col.colWidths = 170;
+                }
+                else if (templateField.type === 'TIME') {
+                    col.type = 'time';
+                    col.timeFormat= 'h:mm:ss a';
+                    col.correctFormat= true;
+                    col.colWidths = 80;
+                }
                 if (templateField.type === "PICKLIST") {
                     col.strict = false;
-
                     // Check if by any change the list containing picklist values are null empty or undefined.
                     if (templateField.picklistValues) {
 
                          // allowInvalid: false - does not allow manual input of value that does not exist in the source.
-                         // In this case, the ENTER key is ignored and the editor field remains opened.
+                         // In this case, the ENTER key is ignored and the editor field remains open.
                         col.source = Object.keys(templateField.picklistValues);
 
                         if (templateField.isRecordType) {
@@ -973,6 +1043,7 @@
             }, 1000);
         };
 
+        //ACTION picklist
         function getLightningPicklist() {
 
             var divControl = document.createElement('div');
@@ -1015,8 +1086,6 @@
 
             return liElement;
         }
-
     });
-
 })();
 
