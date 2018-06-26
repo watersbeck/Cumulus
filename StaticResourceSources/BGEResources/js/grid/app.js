@@ -587,17 +587,17 @@
 
                         if(tooltipIconStyle.display === "none") {
                             console.log('COLUMN INDEX: ', colIndex);
-                            if (colIndex === 3) {
-
-                                colIndex = lastColumn;
+                            if (colIndex === 2) {
 
                                 if (isFirstRow) {
 
                                     rowIndex = lastRow;
+                                    colIndex = lastColumn;
                                 }
                                 else {
 
-                                    row --;
+                                    colIndex = lastRow;
+                                    rowIndex --;
                                 }
                             }
                         }
@@ -605,15 +605,14 @@
 
                             if (colIndex === 2) {
 
-                                colIndex = lastColumn;
+                                colIndex = 1;
+                            }
+                            else if (colIndex === 1) {
 
                                 if (isFirstRow) {
 
                                     rowIndex = lastRow;
-                                }
-                                else {
-
-                                    row --;
+                                    colIndex = lastColumn;
                                 }
                             }
                         }
