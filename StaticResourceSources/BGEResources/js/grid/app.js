@@ -541,7 +541,7 @@
 
                 var shiftKeyIsPressed = event.shiftKey;
 
-                if (rowIndex !== 2) {
+            /*    if (rowIndex !== 2) {
                     // We are not in the action column.
                     // Get the corresponding action icon for that row.
                     var actionIcon = hot.getCell(rowIndex, 2).childNodes["0"].firstChild;
@@ -551,7 +551,7 @@
                         // remove focus from the icon.
                         actionIcon.blur();
                     }
-                }
+                }*/
 
                 if (!shiftKeyIsPressed && (tabKey || rightArrowKey)) {
 
