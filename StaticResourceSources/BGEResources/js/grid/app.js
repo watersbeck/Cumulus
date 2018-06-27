@@ -513,16 +513,23 @@
 
             var editor =  hot.getActiveEditor();
 
+            var tabKey = event.keyCode === 9;
+            var enterKey = event.keyCode === 13;
+            var leftArrowKey = event.keyCode === 37;
+            var upArrowKey = event.keyCode === 38;
+            var rightArrowKey = event.keyCode === 39;
+            var downArrowKey = event.keyCode === 40;
+
+
             if (selectedColType == "dropdown") {
-                if (event.keyCode != 9 && event.keyCode != 37 && event.keyCode != 38 && event.keyCode != 39 && event.keyCode != 40) {
+
+                if (!tabKey && !leftArrowKey && !upArrowKey && !rightArrowKey && !downArrowKey) {
+
                     cancelActiveEditor(editor);
                 }
             }
 
-            if (event.keyCode === 9 || event.keyCode === 37 || event.keyCode === 38 || event.keyCode === 39 || event.keyCode === 40) {
-
-                var rowIndex = selection[0];
-                var colIndex = selection[1];
+            if (tabKey || leftArrowKey || upArrowKey || rightArrowKey || downArrowKey) {
 
                 var numberOfColumns = hot.countCols();
                 var numberOfRows = hot.countRows();
@@ -530,26 +537,33 @@
                 var lastColumn = numberOfColumns - 1;
                 var lastRow = numberOfRows - 1;
 
-                var isFirstRow = (rowIndex === 0) ? true : false;
+                var isFirstRow = (rowIndex === 0);
 
                 var shiftKeyIsPressed = event.shiftKey;
 
+                if (rowIndex !== 2) {
+                    // We are not in the action column.
+                    // Get the corresponding action icon for that row.
+                    var actionIcon = hot.getCell(rowIndex, 2).childNodes["0"].firstChild;
 
-                var isFirstRow = (rowIndex === 0) ? true : false;
+                    if (actionIcon.hasFocus()) {
 
-                    hot.selectCell(rowIndex, colIndex);
+                        // remove focus from the icon.
+                        actionIcon.blur();
+                    }
                 }
-                if (!shiftKeyIsPressed && (event.keyCode === 9 || event.keyCode === 39)) {
 
-                    // Tab or right arrow was pressed
+                if (!shiftKeyIsPressed && (tabKey || rightArrowKey)) {
 
                     try {
+
                         if (colIndex === 0) {
 
                             var tooltipIcon = hot.getCell(rowIndex, 1).childNodes["0"];
                             var tooltipIconStyle = tooltipIcon.style;
+                            var tooltipIconNotDisplayed = (!tooltipIconStyle || tooltipIconStyle.display === "none");
 
-                            if(tooltipIconStyle.display === "none") {
+                            if(tooltipIconNotDisplayed) {
 
                                 // tooltip icon is not being displayed, so skip the cell.
                                 hot.selectCell(rowIndex, 1);
@@ -559,12 +573,14 @@
                                 var rowIndexSelectedCell = selectedCell[0];
                                 var colIndexSelectedCell = selectedCell[1];
 
+                                // Set the focus on the icon, not on the cell.
                                 var actionIcon = hot.getCell(rowIndexSelectedCell, colIndexSelectedCell).childNodes["0"];
 
                                 actionIcon.focus();
                             }
                             else {
-
+                                // Tooltip is displayed.
+                                // Go to the tooltip icon.
                                 hot.selectCell(rowIndex, 0);
                             }
                         }
@@ -572,8 +588,9 @@
 
                             var tooltipIcon = hot.getCell(0, 0).childNodes["0"];
                             var tooltipIconStyle = tooltipIcon.style;
+                            var tooltipIconNotDisplayed = (!tooltipIconStyle || tooltipIconStyle.display === "none");
 
-                            if(!tooltipIconStyle || tooltipIconStyle.display === "none") {
+                            if(tooltipIconNotDisplayed) {
 
                                 // tooltip icon is not being displayed, so skip the cell.
                                 hot.selectCell(0, 1);
@@ -591,16 +608,14 @@
 
                                 hot.selectCell(0, 0);
                             }
-
                         }
                     }
                     catch(err) {
+
                         console.log(err);
                     }
                 }
-                else if (event.keyCode === 37 || (shiftKeyIsPressed && event.keyCode === 9) ) {
-
-                    // Left arrow or shift + tab was pressed
+                else if (leftArrowKey || (shiftKeyIsPressed && tabKey) ) {
 
                     try {
 
@@ -608,7 +623,7 @@
                         var tooltipIconStyle = tooltipIcon.style;
 
                         if(tooltipIconStyle.display === "none") {
-                            console.log('COLUMN INDEX: ', colIndex);
+
                             if (colIndex === 2) {
 
                                 if (isFirstRow) {
@@ -641,10 +656,11 @@
                         hot.selectCell(rowIndex, colIndex);
                     }
                     catch(err) {
+
                         console.log(err);
                     }
                 }
-                else if (event.keyCode === 38) {
+                else if (upArrowKey) {
                     try {
                         if (colIndex === 1) {
                             colIndex = lastColumn;
@@ -662,7 +678,7 @@
                     }
                 }
             }
-            else if (event.keyCode === 13) {
+            else if (enterKey) {
                 event.stopImmediatePropagation();
 
                 rowIndex ++;
@@ -764,6 +780,7 @@
             actionCol.data = 'Actions';
             actionCol.colWidths = 80;
             actionCol.className = "htCenter htMiddle action-cell";
+            actionCol.disableVisualSelection = true;
             frozenColumns.push(actionCol);
 
             for (var i = 0; i < $scope.columnsData.length; i++) {
