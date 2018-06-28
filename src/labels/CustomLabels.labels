@@ -5,7 +5,7 @@
         <language>en_US</language>
         <protected>true</protected>
         <shortDescription>Addr Id Error</shortDescription>
-        <value>Auth ID cannot be blank.</value>
+        <value>You must provide an Auth ID.</value>
     </labels>
     <labels>
         <fullName>Addr_No_Batch</fullName>
@@ -13,7 +13,7 @@
         <language>en_US</language>
         <protected>true</protected>
         <shortDescription>Batch Address Verification Not Supported</shortDescription>
-        <value>The specified service does not support batch address verification.</value>
+        <value>The specified service does not support Batch Address Verification.</value>
     </labels>
     <labels>
         <fullName>Addr_Pending_Verification</fullName>
@@ -120,14 +120,14 @@
         <language>en_US</language>
         <protected>true</protected>
         <shortDescription>Addr Token Error</shortDescription>
-        <value>Auth Token cannot be blank.</value>
+        <value>You must provide an Auth Token.</value>
     </labels>
     <labels>
         <fullName>Addr_Unauthorized_Endpoint</fullName>
         <language>en_US</language>
         <protected>true</protected>
         <shortDescription>Addr Unauthorized Endpoint</shortDescription>
-        <value>Unauthorized endpoint. Please add endpoint URL to your list of authorized Remote Sites, under Setup &gt; Security &gt; Remote Site.</value>
+        <value>The Remote Site URL for the SmartyStreetsZip endpoint is invalid. Verify the correct URL with Smarty Streets, and update the SmartyStreetsZip endpoint in Setup &gt; Security &gt; Remote Site Settings.</value>
     </labels>
     <labels>
         <fullName>Addr_Valid_Key_Pair</fullName>
@@ -297,14 +297,14 @@
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Account Field For Old HH ID</shortDescription>
-        <value>Account Field for Old Household Id</value>
+        <value>Select a field to store the original Household object Id.</value>
     </labels>
     <labels>
         <fullName>CONV_Activities_Reparented</fullName>
         <language>en_US</language>
         <protected>false</protected>
         <shortDescription>Activites Reparented</shortDescription>
-        <value>Activities and tasks associated with 1x1 or Individual Accounts are transferred to the new Household Account</value>
+        <value>Transfers Activities and Tasks associated with One-to-One or Individual Accounts to new Household Accounts.</value>
     </labels>
     <labels>
         <fullName>CONV_Address_Overrides_Set</fullName>
